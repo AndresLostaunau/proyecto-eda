@@ -139,6 +139,95 @@ private:
 
     explicit RTree(T _content):content(_content),mbr(nullptr),parent(nullptr){for(auto &c:child) c = nullptr;}
 
+    void range_search_rec(MBR m, std::vector<T> *ans){
+        if(mbr == nullptr){
+            if(m.in_area(content.key)) ans->push_back(content);
+            return;
+        }
+        if(!m.in_collision(*mbr)) return;
+        for(auto &c:child){
+            if(c == nullptr) break;
+             c->range_search_rec(m,ans);
+        }
+    }
+
+    void writeNode(RTree<T>& rtree){
+      std::ofstream datos;
+      datos.open("rtree.txt",  std::ios::app);
+      if(datos.is_open()){
+        if(rtree.mbr == nullptr){
+          datos<<"H"<<rtree.content.start.x<<","<<rtree.content.start.y<<","<<rtree.content.finish.x<<","<<rtree.content.finish.y<<"\n";
+          datos.close();
+          return;
+        }else{
+          datos<<"M"<<rtree.mbr->LL.x<<","<<rtree.mbr->LL.y<<","<<rtree.mbr->UR.x<<","<<rtree.mbr->UR.y<<"\n";
+          datos.close();
+          return;
+        }
+        
+      }
+    }
+
+    void writeTree(RTree<T>& rtree){
+      if(mbr == nullptr){
+        writeNode(rtree);
+        return;
+      }
+      writeNode(rtree);
+      for(auto &c:rtree.child){
+        if(c == nullptr){
+          std::ofstream datos;
+          datos.open("rtree.txt",  std::ios::app);
+          datos<<")"<<"\n";
+          datos.close();
+        }else{
+          c->writeTree(*c);
+        }
+      }
+    }
+
+    RTree<RouteNode> readNode(std::string & line){
+      std::string type = line.substr(0,1);
+      line.erase(0,1);
+      double x = stod(line.substr(0,line.find(",")));
+      line.erase(0, line.find(",") + 1);
+      double y = stod(line.substr(0,line.find(",")));
+      line.erase(0, line.find(",") + 1);
+      Point p1(x,y);
+      x = stod(line.substr(0,line.find(",")));
+      line.erase(0, line.find(",") + 1);
+      y = stod(line.substr(0,line.find(",")));
+      Point p2(x,y);
+      RTree<RouteNode>* rtree = new RTree<RouteNode>;
+      if(type == "H"){
+        RouteNode* r = new RouteNode(p1,p2);
+        rtree->updateContent(*r);
+      }else{
+        MBR *m = new MBR(p1,p2);
+        rtree->updateMBR(*m);
+      }
+      return *rtree;
+    }
+
+    int readTree(RTree<T>& rtree, std::ifstream &datos, RTree<T>* parent){
+      std::string line;
+      getline(datos, line);
+      if(line == ")") return 0;
+      rtree = readNode(line);
+      rtree.updateParent(parent);
+      if(rtree.isLeaf()){
+        return 1;
+      }else{
+        for(int i = 0; i < N; i++){
+          RTree<RouteNode>* child = new RTree<RouteNode>;
+          if(readTree(*child, datos, &rtree) != 0){
+            rtree.updateChild(*child,i);
+          }
+        }
+      }
+      return 2;
+    }
+
 public:
     RTree():mbr(nullptr),parent(nullptr){for(auto &c:child) c = nullptr;}
     /**Pasos para el insert:
@@ -221,9 +310,38 @@ public:
 
         target->insert_node(new_node);
     };
-    void range_search(Point p1, Point p2){
 
+
+    std::vector<T> range_search(const MBR &m){
+        std::vector<T> ans;
+        range_search_rec(m,&ans);
+        return ans;
     };
+
+    void writeRTree(RTree<RouteNode>& rtree){
+      writeTree(rtree);
+    }
+    void readRTree(RTree<RouteNode>& rtree, std::ifstream &datos){
+      readTree(rtree, datos, nullptr);
+    }
+    void updateMBR(MBR &m){
+      mbr = &m;
+    }
+    void updateContent(T c){
+      content = c;
+    }
+    void updateParent(RTree * p){
+      parent = p;
+    }
+    void updateChild(RTree<T>& r, int n){
+      if(n>=0 && n<=3){
+        child[n] = &r;
+      }
+    }
+    bool isLeaf(){
+      if(mbr == nullptr) return true;
+      return false;
+    }
 };
 
 #endif //PROYECTO_EDA_RTREE_H

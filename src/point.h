@@ -34,7 +34,13 @@ struct MBR{
         UR.y = std::max(p1.y,p2.y);
     }
     bool in_area(const Point &p){
-        return p.x>=LL.x&&p.x<= LL.x&&p.y>= LL.y&&p.y<=UR.y;
+        return p.x>=LL.x&&p.x<=UR.x&&p.y>=LL.y&&p.y<=UR.y;
+    }
+    bool in_collision(MBR &m){
+        return m.in_area(LL) || m.in_area({UR.x,LL.y}) ||
+               m.in_area({LL.x,UR.y}) || m.in_area({UR}) ||
+               in_area(m.LL) || in_area({m.LL.x,m.LL.y}) ||
+               in_area({m.UR.x,m.LL.y}) || in_area(m.UR);
     }
     double area(){return (UR.x-LL.x)*(UR.y-LL.y);}
     double distance(Point &p){
